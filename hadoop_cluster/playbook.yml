@@ -1,0 +1,119 @@
+---
+- name: Installlation
+  hosts: all
+  vars:
+          hadoop_dir: /root/hadoop_software/
+  tasks:
+        - name: Creating Directory for hadoop
+          file:
+                  state: directory
+                  path: "{{ hadoop_dir }}"
+        - name: Copy Hadoop Software rpm file
+          copy:
+                  src: jdk-8u171-linux-x64.rpm
+                  dest: "{{ hadoop_dir }}"
+        - name: Copy Java For Hadoop
+          copy:
+                  src: hadoop-1.2.1-1.x86_64.rpm
+                  dest: "{{ hadoop_dir }}"
+        - name: Installing hadoop
+          command: "rpm -ivh {{ hadoop_dir }}hadoop-1.2.1-1.x86_64.rpm --force"
+        - name: Installing JAVA for hadoop
+          command: "rpm -ivh  {{ hadoop_dir }}jdk-8u171-linux-x64.rpm"
+- name: Configuring namenode 
+  hosts: namenode
+  vars_prompt:
+         - name: nndir
+           prompt: "Enter The Name Node Directory Path"
+           private: no
+  tasks:
+          - name: Creating Name Node Directory
+            file:
+                    state: directory
+                    path: "{{ nndir }}"
+          - name: Configuring hdfs-site.xml file
+            blockinfile:
+                    path: /etc/hadoop/hdfs-site.xml
+                    insertafter: "<configuration>"
+                    block:
+                            "<property>
+                            <name>dfs.name.dir</name>
+                            <value>{{ nndir }}</value>
+                            </property>"
+          - name: Configuring hdfs-site.xml file
+            blockinfile:
+                    path: /etc/hadoop/core-site.xml
+                    insertafter: "<configuration>"
+                    block:
+                            <property>
+                            <name>fs.default.name</name>
+                            <value>hdfs://"{{ groups['namenode'] }}:9001"</value>
+                            </property>
+          - name: Format Name Node Dirertory
+            shell: "echo Y | hadoop namenode -format"
+            register: format
+          - debug:
+                  var: format
+          - name: Start the Name Node Services
+            shell: "hadoop-daemon.sh start namenode"
+          - name: Checking Status of Name node Services
+            shell: "jps"
+            register: jps
+          - debug:
+                  var: jps.stdout_lines
+- name: Configuring datanode
+  hosts: datanode
+  vars_prompt:
+         - name: dndir
+           prompt: "Enter The Data Node Directory Path"
+           private: no
+  tasks:
+          - name: Creating Data Node Directory
+            file:
+                    state: directory
+                    path: "{{ dndir }}"
+          - name: Configuring hdfs-site.xml file
+            blockinfile:
+                    path: /etc/hadoop/hdfs-site.xml
+                    insertafter: "<configuration>"
+                    block:
+                            <property>
+                            <name>dfs.data.dir</name>
+                            <value>{{ dndir }}</value>
+                            </property>
+          - name: Configuring hdfs-site.xml file
+            blockinfile:
+                    path: /etc/hadoop/core-site.xml
+                    insertafter: "<configuration>"
+                    block:
+                            <property>
+                            <name>fs.default.data</name>
+                            <value>hdfs://"{{ groups['namenode'] }}:9001"</value>
+                            </property>
+          - name: Start the Data Node Services
+            shell: "hadoop-daemon.sh start datanode"
+          - name: Checking Status of Data node Services
+            shell: "jps"
+            register: jps
+          - debug:
+                  var: jps.stdout_lines
+          - name: Checking hadoop cluster report
+            shell: "hadoop dfsadmin -report"
+            register: report
+          - debug:
+                  var: report
+
+- name: Configuring Client_node
+  hosts: client
+  tasks:
+          - name: Configuring core-site.xml file
+            blockinfile:
+                    path: /etc/hadoop/core-site.xml
+                    insertafter: "<configuration>"
+                    block:
+                            <property>
+                            <name>fs.default.data</name>
+                            <value>hdfs://"{{ groups['namenode'] }}:9001"</value>
+                            </property>
+
+
