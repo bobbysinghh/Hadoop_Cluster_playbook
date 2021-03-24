@@ -19,7 +19,18 @@
         - name: Installing hadoop
           command: "rpm -ivh {{ hadoop_dir }}hadoop-1.2.1-1.x86_64.rpm --force"
         - name: Installing JAVA for hadoop
-          command: "rpm -ivh  {{ hadoop_dir }}jdk-8u171-linux-x64.rpm"
+          yum:
+                  name: "{{ hadoop_dir }}jdk-8u171-linux-x64.rpm"
+                  state: present
+                  disable_gpg_check: yes
+          register: install_java
+          ignore_errors: True
+        - debug:
+                var: install_java.stderr
+        - name: Stopping Firewalld
+          command: "systemctl disable firewalld --now"
+          ignore_errors: yes
+
 - name: Configuring namenode 
   hosts: namenode
   vars_prompt:
@@ -35,20 +46,20 @@
             blockinfile:
                     path: /etc/hadoop/hdfs-site.xml
                     insertafter: "<configuration>"
-                    block:
-                            "<property>
-                            <name>dfs.name.dir</name>
-                            <value>{{ nndir }}</value>
-                            </property>"
+                    block: |
+                             <property>
+                             <name>dfs.name.dir</name>
+                             <value>{{ nndir }}</value>
+                             </property>
           - name: Configuring hdfs-site.xml file
             blockinfile:
                     path: /etc/hadoop/core-site.xml
                     insertafter: "<configuration>"
-                    block:
-                            <property>
-                            <name>fs.default.name</name>
-                            <value>hdfs://"{{ groups['namenode'] }}:9001"</value>
-                            </property>
+                    block: |
+                             <property>
+                             <name>fs.default.name</name>
+                             <value>hdfs://"{{ groups['namenode'] }}:9001"</value>
+                             </property>
           - name: Format Name Node Dirertory
             shell: "echo Y | hadoop namenode -format"
             register: format
@@ -76,20 +87,20 @@
             blockinfile:
                     path: /etc/hadoop/hdfs-site.xml
                     insertafter: "<configuration>"
-                    block:
-                            <property>
-                            <name>dfs.data.dir</name>
-                            <value>{{ dndir }}</value>
-                            </property>
+                    block: | 
+                             <property>
+                             <name>dfs.data.dir</name>
+                             <value>{{ dndir }}</value>
+                             </property>
           - name: Configuring hdfs-site.xml file
             blockinfile:
                     path: /etc/hadoop/core-site.xml
                     insertafter: "<configuration>"
-                    block:
-                            <property>
-                            <name>fs.default.data</name>
-                            <value>hdfs://"{{ groups['namenode'] }}:9001"</value>
-                            </property>
+                    block: |
+                             <property>
+                             <name>fs.default.data</name>
+                             <value>hdfs://"{{ groups['namenode'] }}:9001"</value>
+                             </property>
           - name: Start the Data Node Services
             shell: "hadoop-daemon.sh start datanode"
           - name: Checking Status of Data node Services
@@ -110,10 +121,10 @@
             blockinfile:
                     path: /etc/hadoop/core-site.xml
                     insertafter: "<configuration>"
-                    block:
-                            <property>
-                            <name>fs.default.data</name>
-                            <value>hdfs://"{{ groups['namenode'] }}:9001"</value>
-                            </property>
+                    block: |
+                             <property>
+                             <name>fs.default.data</name>
+                             <value>hdfs://"{{ groups['namenode'] }}:9001"</value>
+                             </property>
 
 
